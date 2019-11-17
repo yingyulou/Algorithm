@@ -17,35 +17,100 @@ class BST
 {
 public:
 
-    Node<K, V> *Root() { return rootNode; }
+    Node<K, V> *Root() { return __rootNode; }
 
 
     V &operator[](const K &key)
     {
-        Node<K, V> *ownerNode = nullptr, *nowNode = rootNode;
+        Node<K, V> *ownerNode = nullptr, *nowNode = __rootNode;
 
         while (nowNode)
         {
-            if (key < nowNode->key) { ownerNode = nowNode; nowNode = nowNode->left; }
-            else if (key > nowNode->key) { ownerNode = nowNode; nowNode = nowNode->right; }
+            if (key < nowNode->key)
+            {
+                ownerNode = nowNode;
+                nowNode = nowNode->left;
+            }
+            else if (key > nowNode->key)
+            {
+                ownerNode = nowNode;
+                nowNode = nowNode->right;
+            }
             else return nowNode->value;
         }
 
-        if (!ownerNode)
+        if (ownerNode)
         {
-            rootNode = new Node<K, V> {key, V(), nullptr, nullptr, nullptr};
-            return rootNode->value;
-        }
-        else if (key < ownerNode->key)
-        {
-            ownerNode->left = new Node<K, V> {key, V(), ownerNode, nullptr, nullptr};
-            return ownerNode->left->value;
+            if (key < ownerNode->key)
+            {
+                ownerNode->left = new Node<K, V> {key, V(), ownerNode, nullptr, nullptr};
+                return ownerNode->left->value;
+            }
+            else
+            {
+                ownerNode->right = new Node<K, V> {key, V(), ownerNode, nullptr, nullptr};
+                return ownerNode->right->value;
+            }
         }
         else
         {
-            ownerNode->right = new Node<K, V> {key, V(), ownerNode, nullptr, nullptr};
-            return ownerNode->right->value;
+            __rootNode = new Node<K, V> {key, V(), nullptr, nullptr, nullptr};
+            return __rootNode->value;
         }
+    }
+
+
+    void erase(const K &key)
+    {
+        Node<K, V> *nowNode = __rootNode;
+
+        while (nowNode)
+        {
+            if (key < nowNode->key) nowNode = nowNode->left;
+            else if (key > nowNode->key) nowNode = nowNode->right;
+            else break;
+        }
+
+        if (!nowNode) return;
+        else if (!nowNode->right) __moveTree(nowNode->left, nowNode);
+        else if (!nowNode->left) __moveTree(nowNode->right, nowNode);
+        else
+        {
+            Node<K, V> *nextNode = __findNext(nowNode);
+
+            if (nextNode == nowNode->right)
+            {
+                __moveTree(nextNode, nowNode);
+                nextNode->left = nowNode->left;
+                nowNode->left->owner = nextNode;
+            }
+            else
+            {
+                __moveTree(nextNode->right, nextNode);
+                __moveTree(nextNode, nowNode);
+                nextNode->left = nowNode->left;
+                nowNode->left->owner = nextNode;
+                nextNode->right = nowNode->right;
+                nowNode->right->owner = nextNode;
+            }
+        }
+
+        delete nowNode;
+    }
+
+
+    bool find(const K &key)
+    {
+        Node<K, V> *nowNode = __rootNode;
+
+        while (nowNode)
+        {
+            if (key < nowNode->key) nowNode = nowNode->left;
+            else if (key > nowNode->key) nowNode = nowNode->right;
+            else return true;
+        }
+
+        return false;
     }
 
 
@@ -53,19 +118,20 @@ public:
     {
         if (nowNode->left)
         {
-            for (nowNode = nowNode->left; nowNode->right; nowNode = nowNode->right);
-            return nowNode;
+            nowNode = nowNode->left;
+            while (nowNode->right) nowNode = nowNode->right;
         }
-
-        Node<K, V> *ownerNode = nowNode->owner;
-
-        while (ownerNode && nowNode == ownerNode->left)
+        else
         {
-            nowNode = ownerNode;
-            ownerNode = nowNode->owner;
+            while (nowNode->owner && nowNode == nowNode->owner->left)
+            {
+                nowNode = nowNode->owner;
+            }
+
+            nowNode = nowNode->owner;
         }
 
-        return ownerNode;
+        return nowNode;
     }
 
 
@@ -73,68 +139,37 @@ public:
     {
         if (nowNode->right)
         {
-            for (nowNode = nowNode->right; nowNode->left; nowNode = nowNode->left);
-            return nowNode;
+            nowNode = nowNode->right;
+            while (nowNode->left) nowNode = nowNode->left;
         }
-
-        Node<K, V> *ownerNode = nowNode->owner;
-
-        while (ownerNode && nowNode == ownerNode->right)
-        {
-            nowNode = ownerNode;
-            ownerNode = nowNode->owner;
-        }
-
-        return ownerNode;
-    }
-
-
-    void erase(const K &key)
-    {
-        Node<K, V> *oldNode = rootNode, *nextNode;
-
-        while (oldNode)
-        {
-            if (key < oldNode->key) oldNode = oldNode->left;
-            else if (key > oldNode->key) oldNode = oldNode->right;
-            else break;
-        }
-
-        if (!oldNode) return;
-        else if (!oldNode->left) __transplant(oldNode, oldNode->right);
-        else if (!oldNode->right) __transplant(oldNode, oldNode->left);
         else
         {
-            nextNode = next(oldNode);
-
-            if (nextNode->owner != oldNode)
+            while (nowNode->owner && nowNode == nowNode->owner->right)
             {
-                __transplant(nextNode, nextNode->right);
-                nextNode->right = oldNode->right;
-                nextNode->right->owner = nextNode;
+                nowNode = nowNode->owner;
             }
 
-            __transplant(oldNode, nextNode);
-            nextNode->left = oldNode->left;
-            nextNode->left->owner = nextNode;
+            nowNode = nowNode->owner;
         }
 
-        delete oldNode;
+        return nowNode;
     }
 
 
     ~BST()
     {
-        queue<Node<K, V> *> deleteQueue;
-        deleteQueue.push(rootNode);
+        if (!__rootNode) return;
+
+        queue<Node<K, V> *> deleteNodeQueue;
+        deleteNodeQueue.push(__rootNode);
         Node<K, V> *nowNode;
 
-        while (deleteQueue.size())
+        while (!deleteNodeQueue.empty())
         {
-            nowNode = deleteQueue.front();
-            deleteQueue.pop();
-            if (nowNode->left) deleteQueue.push(nowNode->left);
-            if (nowNode->right) deleteQueue.push(nowNode->right);
+            nowNode = deleteNodeQueue.front();
+            deleteNodeQueue.pop();
+            if (nowNode->left)  deleteNodeQueue.push(nowNode->left);
+            if (nowNode->right) deleteNodeQueue.push(nowNode->right);
             delete nowNode;
         }
     }
@@ -142,15 +177,23 @@ public:
 
 private:
 
-    Node<K, V> *rootNode = nullptr;
+    Node<K, V> *__rootNode = nullptr;
 
-    void __transplant(Node<K, V> *oldNode, Node<K, V> *newNode)
+    void __moveTree(Node<K, V> *srcNode, Node<K, V> *tarNode)
     {
-        if (!oldNode->owner) rootNode = newNode;
-        else if (oldNode == oldNode->owner->left) oldNode->owner->left = newNode;
-        else oldNode->owner->right = newNode;
+        if (tarNode == __rootNode) __rootNode = srcNode;
+        else if (tarNode == tarNode->owner->left) tarNode->owner->left = srcNode;
+        else tarNode->owner->right = srcNode;
 
-        if (newNode) newNode->owner = oldNode->owner;
+        if (srcNode) srcNode->owner = tarNode->owner;
+    }
+
+
+    Node<K, V> *__findNext(Node<K, V> *nowNode)
+    {
+        for (nowNode = nowNode->right; nowNode->left; nowNode = nowNode->left);
+
+        return nowNode;
     }
 };
 
@@ -158,6 +201,6 @@ private:
 int main()
 {
     BST<int, int> bst;
-    for (int i: {100, 90, 110, 85, 95, 105, 115}) bst[i] = i;
-    bst.erase(100);
+    for (int i: {50, 40, 60, 35, 45, 55, 65, 66}) bst[i] = i;
+    cout << bst.next(bst.Root()->left->right)->value;
 }
