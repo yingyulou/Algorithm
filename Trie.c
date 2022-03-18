@@ -1,0 +1,186 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stddef.h>
+
+////////////////////////////////////////////////////////////////////////////////
+// Struct __Node
+////////////////////////////////////////////////////////////////////////////////
+
+#define __ALPHABET_LEN 0x80
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Struct __Node
+////////////////////////////////////////////////////////////////////////////////
+
+typedef struct __Node
+{
+    _Bool __flag;
+    struct __Node *__sub[__ALPHABET_LEN];
+} __Node;
+
+
+////////////////////////////////////////////////////////////////////////////////
+// __Node Constructor
+////////////////////////////////////////////////////////////////////////////////
+
+void __nodeConstructor(__Node *this)
+{
+    this->__flag = 0;
+
+    for (size_t idx = 0; idx < __ALPHABET_LEN; idx++)
+    {
+        this->__sub[idx] = 0;
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Struct Trie
+////////////////////////////////////////////////////////////////////////////////
+
+typedef struct
+{
+    __Node __root;
+} Trie;
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Trie Constructor
+////////////////////////////////////////////////////////////////////////////////
+
+void trieConstructor(Trie *this)
+{
+    __nodeConstructor(&this->__root);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Trie Find
+////////////////////////////////////////////////////////////////////////////////
+
+_Bool trieFind(Trie *this, const char *key)
+{
+    __Node *nodePtr = &this->__root;
+
+    for (size_t idx = 0; key[idx]; idx++)
+    {
+        if (nodePtr->__sub[key[idx]])
+        {
+            nodePtr = nodePtr->__sub[key[idx]];
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    return nodePtr->__flag;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Trie Insert
+////////////////////////////////////////////////////////////////////////////////
+
+void trieInsert(Trie *this, const char *key)
+{
+    __Node *nodePtr = &this->__root;
+
+    for (size_t idx = 0; key[idx]; idx++)
+    {
+        if (!nodePtr->__sub[key[idx]])
+        {
+            nodePtr->__sub[key[idx]] = (__Node *)malloc(sizeof(__Node));
+
+            __nodeConstructor(nodePtr->__sub[key[idx]]);
+        }
+
+        nodePtr = nodePtr->__sub[key[idx]];
+    }
+
+    nodePtr->__flag = 1;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Trie Erase
+////////////////////////////////////////////////////////////////////////////////
+
+void trieErase(Trie *this, const char *key)
+{
+    __Node *nodePtr = &this->__root;
+
+    for (size_t idx = 0; key[idx]; idx++)
+    {
+        if (nodePtr->__sub[key[idx]])
+        {
+            nodePtr = nodePtr->__sub[key[idx]];
+        }
+        else
+        {
+            return;
+        }
+    }
+
+    nodePtr->__flag = 0;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Trie Destructor Helper
+////////////////////////////////////////////////////////////////////////////////
+
+void __trieDestructorHelper(__Node *nodePtr)
+{
+    if (nodePtr)
+    {
+        for (size_t idx = 0; idx < __ALPHABET_LEN; idx++)
+        {
+            __trieDestructorHelper(nodePtr->__sub[idx]);
+        }
+
+        free(nodePtr);
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Trie Destructor
+////////////////////////////////////////////////////////////////////////////////
+
+void trieDestructor(Trie *this)
+{
+    for (size_t idx = 0; idx < __ALPHABET_LEN; idx++)
+    {
+        __trieDestructorHelper(this->__root.__sub[idx]);
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Main
+////////////////////////////////////////////////////////////////////////////////
+
+int main()
+{
+    Trie trieObj;
+
+    trieConstructor(&trieObj);
+
+    trieInsert(&trieObj, "abc");
+    trieInsert(&trieObj, "ab");
+    trieInsert(&trieObj, "66");
+    trieInsert(&trieObj, "666");
+
+    trieErase(&trieObj, "abc");
+    trieErase(&trieObj, "666");
+    trieErase(&trieObj, "777");
+
+    printf("%d %d %d\n",
+        trieFind(&trieObj, "66"),
+        trieFind(&trieObj, "666"),
+        trieFind(&trieObj, "ab"));
+
+    trieDestructor(&trieObj);
+}
